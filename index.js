@@ -53,6 +53,10 @@ const startServer = async () => {
     app.use('/api/payments', paymentRoutes);
     app.use('/api/trainers', trainerRoutes);
 
+    app.get('/', (req, res) => {
+      res.send('Welcome to the ApexForge.');
+    });
+
     app.get('/health', (req, res) => res.json({ status: 'OK', app: 'ApexForge API' }));
 
     app.use((err, req, res, next) => {
