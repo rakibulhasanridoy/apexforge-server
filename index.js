@@ -35,40 +35,48 @@ app.use(cors({
 app.use(cookieParser());
 app.use(express.json({ limit: '10mb' }));
 
-const startServer = async () => {
+let initialized = false;
+async function initialize() {
+  if (initialized) return;
+  await initAuth();
+  await connectDB();
+  initialized = true;
+}
+
+app.use(async (req, res, next) => {
   try {
-    await initAuth();
-    const auth = getAuth();
-    await connectDB();
-
-    // Better Auth handles all /api/auth/* routes
-    app.all('/api/auth/*', toNodeHandler(auth));
-
-    // Custom routes
-    app.use('/api/jwt', authRoutes);
-    app.use('/api/users', userRoutes);
-    app.use('/api/classes', classRoutes);
-    app.use('/api/bookings', bookingRoutes);
-    app.use('/api/forum', forumRoutes);
-    app.use('/api/payments', paymentRoutes);
-    app.use('/api/trainers', trainerRoutes);
-
-    app.get('/', (req, res) => {
-      res.send('Welcome to the ApexForge.');
-    });
-
-    app.get('/health', (req, res) => res.json({ status: 'OK', app: 'ApexForge API' }));
-
-    app.use((err, req, res, next) => {
-      console.error(err.stack);
-      res.status(500).json({ message: 'Something went wrong!' });
-    });
-
-    app.listen(PORT, () => console.log(`🚀 ApexForge Server running on port ${PORT}`));
+    await initialize();
+    next();
   } catch (error) {
-    console.error('Failed to start server:', error);
-    process.exit(1);
+    console.error('Initialization failed:', error);
+    res.status(500).json({ message: 'Server initialization failed' });
   }
-};
+});
 
-startServer();
+app.all('/api/auth/*', async (req, res, next) => {
+  await initialize();
+  const auth = getAuth();
+  return toNodeHandler(auth)(req, res, next);
+});
+
+app.use('/api/jwt', authRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/classes', classRoutes);
+app.use('/api/bookings', bookingRoutes);
+app.use('/api/forum', forumRoutes);
+app.use('/api/payments', paymentRoutes);
+app.use('/api/trainers', trainerRoutes);
+
+app.get('/', (req, res) => res.send('Welcome to the ApexForge API.'));
+app.get('/health', (req, res) => res.json({ status: 'OK', app: 'ApexForge API' }));
+
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ message: 'Something went wrong!' });
+});
+
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(PORT, () => console.log(`🚀 ApexForge Server running on port ${PORT}`));
+}
+
+export default app;
