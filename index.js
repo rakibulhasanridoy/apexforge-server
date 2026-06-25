@@ -16,16 +16,21 @@ import trainerRoutes from './routes/trainerRoutes.js';
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-const allowedOrigins = [
-  process.env.CLIENT_URL,
-  'http://localhost:5173',
-  'http://localhost:3000',
-];
-
+// Allow ALL origins that contain your Vercel domains
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) callback(null, true);
-    else callback(new Error('Not allowed by CORS'));
+    const allowed = [
+      'http://localhost:3000',
+      'http://localhost:5173',
+      process.env.CLIENT_URL,
+    ].filter(Boolean);
+
+    // Allow Vercel preview deployments too
+    if (!origin || allowed.includes(origin) || origin.endsWith('.vercel.app')) {
+      callback(null, true);
+    } else {
+      callback(new Error(`CORS: ${origin} not allowed`));
+    }
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -44,19 +49,13 @@ async function initialize() {
 }
 
 app.use(async (req, res, next) => {
-  try {
-    await initialize();
-    next();
-  } catch (error) {
-    console.error('Initialization failed:', error);
-    res.status(500).json({ message: 'Server initialization failed' });
-  }
+  try { await initialize(); next(); }
+  catch (error) { console.error('Init failed:', error); res.status(500).json({ message: 'Server init failed' }); }
 });
 
 app.all('/api/auth/*', async (req, res, next) => {
   await initialize();
-  const auth = getAuth();
-  return toNodeHandler(auth)(req, res, next);
+  return toNodeHandler(getAuth())(req, res, next);
 });
 
 app.use('/api/jwt', authRoutes);
@@ -67,7 +66,7 @@ app.use('/api/forum', forumRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/trainers', trainerRoutes);
 
-app.get('/', (req, res) => res.send('Welcome to the ApexForge API.'));
+app.get('/', (req, res) => res.json({ status: 'OK', app: 'ApexForge API' }));
 app.get('/health', (req, res) => res.json({ status: 'OK', app: 'ApexForge API' }));
 
 app.use((err, req, res, next) => {
@@ -76,7 +75,7 @@ app.use((err, req, res, next) => {
 });
 
 if (process.env.NODE_ENV !== 'production') {
-  app.listen(PORT, () => console.log(`🚀 ApexForge Server running on port ${PORT}`));
+  app.listen(PORT, () => console.log(`ApexForge Server running on port ${PORT}`));
 }
 
 export default app;
