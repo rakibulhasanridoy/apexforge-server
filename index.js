@@ -37,8 +37,10 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
-app.use(cookieParser());
-app.use(express.json({ limit: '10mb' }));
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.url}`);
+  next();
+});
 
 let initialized = false;
 async function initialize() {
@@ -48,14 +50,17 @@ async function initialize() {
   initialized = true;
 }
 
-app.use(async (req, res, next) => {
-  try { await initialize(); next(); }
-  catch (error) { console.error('Init failed:', error); res.status(500).json({ message: 'Server init failed' }); }
-});
-
 app.all('/api/auth/*', async (req, res, next) => {
   await initialize();
   return toNodeHandler(getAuth())(req, res, next);
+});
+
+app.use(cookieParser());
+app.use(express.json({ limit: '10mb' }));
+
+app.use(async (req, res, next) => {
+  try { await initialize(); next(); }
+  catch (error) { console.error('Init failed:', error); res.status(500).json({ message: 'Server init failed' }); }
 });
 
 app.use('/api/jwt', authRoutes);
