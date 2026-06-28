@@ -12,6 +12,7 @@ import bookingRoutes from './routes/bookingRoutes.js';
 import forumRoutes from './routes/forumRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
 import trainerRoutes from './routes/trainerRoutes.js';
+import { errorHandler } from './middleware/errorMiddleware.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -74,10 +75,9 @@ app.use('/api/trainers', trainerRoutes);
 app.get('/', (req, res) => res.json({ status: 'OK', app: 'ApexForge API' }));
 app.get('/health', (req, res) => res.json({ status: 'OK', app: 'ApexForge API' }));
 
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ message: 'Something went wrong!' });
-});
+// Must be registered after all routes — Express identifies error middleware
+// by its 4-argument signature (err, req, res, next)
+app.use(errorHandler);
 
 if (process.env.NODE_ENV !== 'production') {
   app.listen(PORT, () => console.log(`ApexForge Server running on port ${PORT}`));
